@@ -13,7 +13,7 @@
 
     // 配置
     const CONFIG = {
-        CHECK_INTERVAL: 3000,      // 检查间隔（毫秒）
+        CHECK_INTERVAL: 60000,      // 检查间隔（毫秒）- 1分钟
         POPUP_CHECK_INTERVAL: 1000, // 弹窗检查间隔
         WAIT_AFTER_COMPLETE: 30000, // 播放完成后等待时间（毫秒）
         DEBUG: true,                // 调试模式
@@ -25,6 +25,7 @@
         currentScore: 0,
         requiredScore: 0,
         className: '',
+        userName: '',
         logs: []
     };
 
@@ -51,6 +52,64 @@
         }
     }
 
+    // ==================== 用户信息获取 ====================
+
+    // 获取用户信息
+    async function fetchUserInfo() {
+        try {
+            // 方法1: 尝试从API获取用户信息
+            const response = await fetch('/api/Page/GetUserInfo', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+                }
+            });
+            const data = await response.json();
+            if (data.Status === 200 && data.Data) {
+                return data.Data.Name || data.Data.UserName || data.Data.RealName;
+            }
+        } catch (e) {
+            log('API获取用户信息失败，尝试从页面获取: ' + e.message);
+        }
+
+        // 方法2: 从页面DOM中获取
+        try {
+            // 查找常见的用户名显示元素
+            const userSelectors = [
+                '.user-name',
+                '.username',
+                '.user-info',
+                '[class*="user"] [class*="name"]',
+                '.header-user',
+                '.nav-user'
+            ];
+
+            for (const selector of userSelectors) {
+                const element = document.querySelector(selector);
+                if (element && element.textContent.trim()) {
+                    const text = element.textContent.trim();
+                    // 过滤掉太长的文本（可能不是用户名）
+                    if (text.length > 0 && text.length < 20) {
+                        return text;
+                    }
+                }
+            }
+
+            // 方法3: 从localStorage或sessionStorage获取
+            const localUser = localStorage.getItem('userName') ||
+                            localStorage.getItem('username') ||
+                            sessionStorage.getItem('userName') ||
+                            sessionStorage.getItem('username');
+            if (localUser) {
+                return localUser;
+            }
+        } catch (e) {
+            log('从页面获取用户信息失败: ' + e.message);
+        }
+
+        return '学习者';
+    }
+
     // ==================== 悬浮窗口功能 ====================
 
     // 创建悬浮窗口
@@ -69,6 +128,12 @@
                 <button class="float-close" title="关闭">×</button>
             </div>
             <div class="float-content">
+                <div class="user-section">
+                    <div class="user-info">
+                        <div class="user-greeting">你好，</div>
+                        <div class="user-name" id="float-user-name">加载中...</div>
+                    </div>
+                </div>
                 <div class="progress-section">
                     <div class="progress-title">学习进度</div>
                     <div class="progress-info">
@@ -98,8 +163,8 @@
         style.textContent = `
             #auto-study-float {
                 position: fixed;
-                top: 80px;
-                right: 20px;
+                top: 20px;
+                left: 20px;
                 width: 320px;
                 background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                 border-radius: 12px;
@@ -149,6 +214,29 @@
                 padding: 15px;
                 max-height: 500px;
                 overflow-y: auto;
+            }
+            .user-section {
+                background: rgba(255, 255, 255, 0.95);
+                border-radius: 8px;
+                padding: 12px 15px;
+                margin-bottom: 12px;
+            }
+            .user-info {
+                display: flex;
+                align-items: baseline;
+                gap: 4px;
+            }
+            .user-greeting {
+                font-size: 14px;
+                color: #666;
+            }
+            .user-name {
+                font-size: 16px;
+                font-weight: 600;
+                color: #333;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
             }
             .progress-section {
                 background: white;
@@ -310,6 +398,12 @@
         const floatDiv = document.getElementById('auto-study-float');
         if (!floatDiv) return;
 
+        // 更新用户信息
+        const userNameEl = document.getElementById('float-user-name');
+        if (STATE.userName && userNameEl) {
+            userNameEl.textContent = STATE.userName;
+        }
+
         // 更新进度信息
         const classNameEl = document.getElementById('float-class-name');
         const currentScoreEl = document.getElementById('float-current-score');
@@ -344,10 +438,11 @@
     }
 
     // 更新状态并刷新窗口
-    function updateState(currentScore, requiredScore, className) {
-        STATE.currentScore = currentScore || STATE.currentScore;
-        STATE.requiredScore = requiredScore || STATE.requiredScore;
-        STATE.className = className || STATE.className;
+    function updateState(currentScore, requiredScore, className, userName) {
+        if (currentScore !== undefined) STATE.currentScore = currentScore;
+        if (requiredScore !== undefined) STATE.requiredScore = requiredScore;
+        if (className !== undefined) STATE.className = className;
+        if (userName !== undefined) STATE.userName = userName;
         updateFloatingWindow();
     }
 
@@ -733,13 +828,22 @@
 
     // ==================== 主入口 ====================
 
-    function init() {
+    async function init() {
         log('脚本启动');
 
         // 创建悬浮窗口
         setTimeout(() => {
             createFloatingWindow();
         }, 500);
+
+        // 获取用户信息
+        setTimeout(async () => {
+            const userName = await fetchUserInfo();
+            if (userName) {
+                log(`当前用户: ${userName}`);
+                updateState(undefined, undefined, undefined, userName);
+            }
+        }, 1000);
 
         // 等待页面加载完成
         setTimeout(() => {
