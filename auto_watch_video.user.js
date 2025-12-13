@@ -13,9 +13,9 @@
 
     // 配置
     const CONFIG = {
-        CHECK_INTERVAL: 60000,      // 检查间隔（毫秒）- 1分钟
+        CHECK_INTERVAL: 5000,       // 检查间隔（毫秒）- 5秒
         POPUP_CHECK_INTERVAL: 1000, // 弹窗检查间隔
-        WAIT_AFTER_COMPLETE: 30000, // 播放完成后等待时间（毫秒）
+        WAIT_AFTER_COMPLETE: 20000, // 播放完成后等待时间（毫秒）- 20秒
         DEBUG: true,                // 调试模式
         MAX_LOG_ENTRIES: 15         // 最多显示的日志条数
     };
@@ -617,6 +617,7 @@
 
     let videoCheckTimer = null;
     let popupCheckTimer = null;
+    let completeCheckCount = 0;  // 连续检测到完成的次数
 
     // 获取视频元素
     function getVideoElement() {
@@ -763,6 +764,9 @@
     function startVideoMonitoring() {
         log('开始监控视频播放');
 
+        // 重置完成检测计数器
+        completeCheckCount = 0;
+
         // 确保视频播放
         ensureVideoPlaying();
 
@@ -781,16 +785,28 @@
             // 确保视频在播放
             ensureVideoPlaying();
 
-            // 检查是否完成
-            if (isVideoComplete()) {
-                log('视频播放完成！');
-                stopVideoMonitoring();
+            // 检查进度是否达到100%
+            if (parseFloat(progress) >= 99.5) {
+                completeCheckCount++;
+                log(`检测到播放完成 (${completeCheckCount}/3)`);
 
-                // 等待一段时间后返回班级详情页
-                log(`等待 ${CONFIG.WAIT_AFTER_COMPLETE / 1000} 秒后返回班级详情页...`);
-                setTimeout(() => {
-                    returnToClassDetail();
-                }, CONFIG.WAIT_AFTER_COMPLETE);
+                // 连续3次都是100%才认为完成
+                if (completeCheckCount >= 3) {
+                    log('✅ 连续3次检测确认视频播放完成！');
+                    stopVideoMonitoring();
+
+                    // 等待一段时间后返回班级详情页
+                    log(`等待 ${CONFIG.WAIT_AFTER_COMPLETE / 1000} 秒后返回班级详情页...`);
+                    setTimeout(() => {
+                        returnToClassDetail();
+                    }, CONFIG.WAIT_AFTER_COMPLETE);
+                }
+            } else {
+                // 如果进度不是100%，重置计数器
+                if (completeCheckCount > 0) {
+                    log(`播放进度未达到100%，重置完成计数器`);
+                    completeCheckCount = 0;
+                }
             }
         }, CONFIG.CHECK_INTERVAL);
 
@@ -799,11 +815,12 @@
             handlePopups();
         }, CONFIG.POPUP_CHECK_INTERVAL);
 
-        // 监听视频结束事件
+        // 监听视频结束事件（浏览器原生事件，直接认为完成）
         const video = getVideoElement();
         if (video) {
             video.addEventListener('ended', () => {
-                log('收到视频结束事件');
+                log('收到视频结束事件（浏览器原生）');
+                log('✅ 视频播放完成！');
                 stopVideoMonitoring();
                 log(`等待 ${CONFIG.WAIT_AFTER_COMPLETE / 1000} 秒后返回班级详情页...`);
                 setTimeout(() => {
@@ -823,6 +840,7 @@
             clearInterval(popupCheckTimer);
             popupCheckTimer = null;
         }
+        completeCheckCount = 0;  // 重置计数器
         log('停止视频监控');
     }
 
