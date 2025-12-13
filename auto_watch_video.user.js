@@ -754,40 +754,45 @@
         }
     }
 
-    // 模拟用户交互（仅触发事件，不点击播放按钮）
+    // 模拟真实的用户交互
     function simulateUserInteraction() {
-        log('模拟用户交互以解除自动播放限制');
+        log('模拟真实用户交互以解除自动播放限制');
 
-        // 创建真实的鼠标事件
-        const clickEvent = new MouseEvent('click', {
-            view: window,
-            bubbles: true,
-            cancelable: true,
-            clientX: 100,
-            clientY: 100
-        });
+        // 方法1: 创建一个临时的不可见按钮并点击它
+        const tempButton = document.createElement('button');
+        tempButton.style.position = 'fixed';
+        tempButton.style.top = '-100px';
+        tempButton.style.left = '-100px';
+        tempButton.style.width = '1px';
+        tempButton.style.height = '1px';
+        tempButton.style.opacity = '0';
+        tempButton.style.pointerEvents = 'none';
+        tempButton.textContent = 'temp';
 
-        // 创建触摸事件（移动端）
-        const touchEvent = new TouchEvent('touchstart', {
-            bubbles: true,
-            cancelable: true,
-            view: window
-        });
+        document.body.appendChild(tempButton);
 
-        // 模拟点击 document
-        document.dispatchEvent(clickEvent);
+        // 使用 .click() 方法创建真实的用户交互
+        tempButton.click();
 
-        // 模拟点击 body
-        if (document.body) {
-            document.body.dispatchEvent(clickEvent);
+        // 立即移除临时按钮
+        setTimeout(() => {
+            document.body.removeChild(tempButton);
+        }, 100);
+
+        // 方法2: 点击 body 元素
+        if (document.body && document.body.click) {
             try {
-                document.body.dispatchEvent(touchEvent);
+                // 找一个安全的位置点击
+                const safeElement = document.body.querySelector('div, main, section, article');
+                if (safeElement) {
+                    safeElement.click();
+                }
             } catch (e) {
-                // 某些浏览器可能不支持 TouchEvent
+                log('点击页面元素时出错: ' + e.message);
             }
         }
 
-        log('用户交互模拟完成');
+        log('真实用户交互模拟完成');
     }
 
     // 智能点击播放按钮（只在视频暂停时点击一次）
