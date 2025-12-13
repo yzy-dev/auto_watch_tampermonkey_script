@@ -618,10 +618,46 @@
     let videoCheckTimer = null;
     let popupCheckTimer = null;
     let completeCheckCount = 0;  // 连续检测到完成的次数
+    let lastProgress = -1;  // 上一次的进度
+    let progressUnchangedCount = 0;  // 进度未变化的次数
 
     // 获取视频元素
     function getVideoElement() {
         return document.querySelector('video');
+    }
+
+    // 点击视频中间位置
+    function clickVideoCenter() {
+        const video = getVideoElement();
+        if (!video) return;
+
+        try {
+            const rect = video.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+
+            log(`点击视频中心位置 (${Math.round(centerX)}, ${Math.round(centerY)})`);
+
+            // 创建点击事件
+            const clickEvent = new MouseEvent('click', {
+                view: window,
+                bubbles: true,
+                cancelable: true,
+                clientX: centerX,
+                clientY: centerY
+            });
+
+            // 直接点击视频元素
+            video.click();
+
+            // 也触发事件到坐标位置
+            const element = document.elementFromPoint(centerX, centerY);
+            if (element) {
+                element.dispatchEvent(clickEvent);
+            }
+        } catch (e) {
+            log('点击视频中心失败: ' + e.message);
+        }
     }
 
     // 确保视频播放（避免频繁调用）
@@ -841,8 +877,10 @@
     function startVideoMonitoring() {
         log('开始监控视频播放');
 
-        // 重置完成检测计数器
+        // 重置所有计数器
         completeCheckCount = 0;
+        lastProgress = -1;
+        progressUnchangedCount = 0;
 
         // 确保视频播放
         ensureVideoPlaying();
@@ -859,11 +897,31 @@
             const progress = video.duration > 0 ? ((video.currentTime / video.duration) * 100).toFixed(1) : 0;
             log(`播放进度: ${progress}% (${Math.floor(video.currentTime)}s / ${Math.floor(video.duration)}s)`);
 
+            // 检查进度是否停滞
+            const currentProgress = parseFloat(progress);
+            if (lastProgress >= 0 && Math.abs(currentProgress - lastProgress) < 0.1 && currentProgress < 99.5) {
+                // 进度没有变化且不是100%
+                progressUnchangedCount++;
+                log(`⚠️ 进度未变化 (${progressUnchangedCount}/2)`);
+
+                if (progressUnchangedCount >= 2) {
+                    log('🔄 检测到视频停滞，点击视频中心尝试恢复');
+                    clickVideoCenter();
+                    progressUnchangedCount = 0;  // 重置计数器
+                }
+            } else {
+                // 进度有变化，重置计数器
+                if (progressUnchangedCount > 0) {
+                    progressUnchangedCount = 0;
+                }
+            }
+            lastProgress = currentProgress;
+
             // 确保视频在播放
             ensureVideoPlaying();
 
             // 检查进度是否达到100%
-            if (parseFloat(progress) >= 99.5) {
+            if (currentProgress >= 99.5) {
                 completeCheckCount++;
                 log(`检测到播放完成 (${completeCheckCount}/3)`);
 
@@ -879,7 +937,7 @@
                     }, CONFIG.WAIT_AFTER_COMPLETE);
                 }
             } else {
-                // 如果进度不是100%，重置计数器
+                // 如果进度不是100%，重置完成计数器
                 if (completeCheckCount > 0) {
                     log(`播放进度未达到100%，重置完成计数器`);
                     completeCheckCount = 0;
@@ -917,7 +975,10 @@
             clearInterval(popupCheckTimer);
             popupCheckTimer = null;
         }
-        completeCheckCount = 0;  // 重置计数器
+        // 重置所有计数器
+        completeCheckCount = 0;
+        lastProgress = -1;
+        progressUnchangedCount = 0;
         log('停止视频监控');
     }
 
