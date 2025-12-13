@@ -624,14 +624,30 @@
         return document.querySelector('video');
     }
 
-    // 确保视频播放
-    function ensureVideoPlaying() {
+    // 确保视频播放（避免频繁调用）
+    let lastPlayAttempt = 0;
+    async function ensureVideoPlaying() {
         const video = getVideoElement();
-        if (video && video.paused) {
-            log('视频暂停，尝试恢复播放...');
-            video.play().catch(e => {
-                log('自动播放失败: ' + e.message);
-            });
+        if (!video || !video.paused) {
+            return;  // 视频不存在或正在播放，无需操作
+        }
+
+        // 避免频繁尝试（每5秒最多尝试一次）
+        const now = Date.now();
+        if (now - lastPlayAttempt < 5000) {
+            return;
+        }
+        lastPlayAttempt = now;
+
+        log('视频暂停，尝试恢复播放...');
+
+        try {
+            await video.play();
+            log('✅ 视频恢复播放成功');
+        } catch (e) {
+            log('⚠️ 视频恢复播放失败: ' + e.message);
+            // 尝试点击播放按钮
+            clickPlayButtonIfNeeded();
         }
     }
 
@@ -738,9 +754,76 @@
         }
     }
 
+    // 模拟用户交互（仅触发事件，不点击播放按钮）
+    function simulateUserInteraction() {
+        log('模拟用户交互以解除自动播放限制');
+
+        // 创建真实的鼠标事件
+        const clickEvent = new MouseEvent('click', {
+            view: window,
+            bubbles: true,
+            cancelable: true,
+            clientX: 100,
+            clientY: 100
+        });
+
+        // 创建触摸事件（移动端）
+        const touchEvent = new TouchEvent('touchstart', {
+            bubbles: true,
+            cancelable: true,
+            view: window
+        });
+
+        // 模拟点击 document
+        document.dispatchEvent(clickEvent);
+
+        // 模拟点击 body
+        if (document.body) {
+            document.body.dispatchEvent(clickEvent);
+            try {
+                document.body.dispatchEvent(touchEvent);
+            } catch (e) {
+                // 某些浏览器可能不支持 TouchEvent
+            }
+        }
+
+        log('用户交互模拟完成');
+    }
+
+    // 智能点击播放按钮（只在视频暂停时点击一次）
+    function clickPlayButtonIfNeeded() {
+        const video = getVideoElement();
+        if (!video || !video.paused) {
+            return;  // 视频正在播放，不需要点击
+        }
+
+        // 查找播放按钮
+        const playButtonSelectors = [
+            'button[class*="play"]:not([class*="playing"])',
+            'button[aria-label*="播放"]',
+            'button[title*="播放"]',
+            '.video-play-button',
+            '.vjs-big-play-button'
+        ];
+
+        for (const selector of playButtonSelectors) {
+            const button = document.querySelector(selector);
+            if (button && button.offsetParent !== null) {
+                log('找到播放按钮，尝试点击');
+                button.click();
+                return;  // 只点击一次就返回
+            }
+        }
+    }
+
     // 视频播放页主逻辑
     function handleVideoPlayPage() {
         log('进入视频播放页面');
+
+        // 立即模拟用户交互（仅触发事件，不点击按钮）
+        setTimeout(() => {
+            simulateUserInteraction();
+        }, 500);
 
         // 等待视频加载
         let retryCount = 0;
@@ -749,6 +832,22 @@
             if (video) {
                 clearInterval(waitForVideo);
                 log('视频元素已加载');
+
+                // 尝试自动播放
+                setTimeout(async () => {
+                    if (video.paused) {
+                        log('尝试自动播放视频');
+                        try {
+                            await video.play();
+                            log('✅ 自动播放成功');
+                        } catch (e) {
+                            log('自动播放失败: ' + e.message);
+                            log('尝试点击播放按钮');
+                            clickPlayButtonIfNeeded();
+                        }
+                    }
+                }, 1000);
+
                 startVideoMonitoring();
             } else {
                 retryCount++;
