@@ -315,9 +315,12 @@
             .usage-list {
                 margin: 0;
                 padding-left: 20px;
+                list-style-type: decimal;
+                list-style-position: outside;
             }
             .usage-list li {
                 margin-bottom: 6px;
+                padding-left: 4px;
             }
             .usage-list li:last-child {
                 margin-bottom: 0;
@@ -876,12 +879,14 @@
             const progress = video.duration > 0 ? ((video.currentTime / video.duration) * 100).toFixed(1) : 0;
             log(`播放进度: ${progress}% (${Math.floor(video.currentTime)}s / ${Math.floor(video.duration)}s)`);
 
-            // 检查进度是否停滞
+            // 检查进度是否停滞（精确到0.1%）
             const currentProgress = parseFloat(progress);
-            if (lastProgress >= 0 && Math.abs(currentProgress - lastProgress) < 0.1 && currentProgress < 99.5) {
-                // 进度没有变化且不是100%
+            const progressDiff = Math.abs(currentProgress - lastProgress);
+
+            if (lastProgress >= 0 && progressDiff <= 0.05 && currentProgress < 99.5) {
+                // 进度变化 <= 0.05% 认为停滞
                 progressUnchangedCount++;
-                log(`⚠️ 进度未变化 (${progressUnchangedCount}/2)`);
+                log(`⚠️ 进度未变化 (${progressUnchangedCount}/2) [差异: ${progressDiff.toFixed(2)}%]`);
 
                 if (progressUnchangedCount >= 2) {
                     log('🔄 检测到视频停滞，点击视频中心尝试恢复');
@@ -891,6 +896,7 @@
             } else {
                 // 进度有变化，重置计数器
                 if (progressUnchangedCount > 0) {
+                    log(`✓ 进度恢复变化 [差异: ${progressDiff.toFixed(2)}%]`);
                     progressUnchangedCount = 0;
                 }
             }
