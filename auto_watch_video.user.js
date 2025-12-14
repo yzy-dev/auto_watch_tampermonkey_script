@@ -25,7 +25,8 @@
         currentScore: 0,
         requiredScore: 0,
         className: '',
-        userName: '',
+        classId: '',
+        courseId: '',
         logs: []
     };
 
@@ -52,64 +53,6 @@
         }
     }
 
-    // ==================== 用户信息获取 ====================
-
-    // 获取用户信息
-    async function fetchUserInfo() {
-        try {
-            // 方法1: 尝试从API获取用户信息
-            const response = await fetch('/api/Page/GetUserInfo', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
-                }
-            });
-            const data = await response.json();
-            if (data.Status === 200 && data.Data) {
-                return data.Data.Name || data.Data.UserName || data.Data.RealName;
-            }
-        } catch (e) {
-            log('API获取用户信息失败，尝试从页面获取: ' + e.message);
-        }
-
-        // 方法2: 从页面DOM中获取
-        try {
-            // 查找常见的用户名显示元素
-            const userSelectors = [
-                '.user-name',
-                '.username',
-                '.user-info',
-                '[class*="user"] [class*="name"]',
-                '.header-user',
-                '.nav-user'
-            ];
-
-            for (const selector of userSelectors) {
-                const element = document.querySelector(selector);
-                if (element && element.textContent.trim()) {
-                    const text = element.textContent.trim();
-                    // 过滤掉太长的文本（可能不是用户名）
-                    if (text.length > 0 && text.length < 20) {
-                        return text;
-                    }
-                }
-            }
-
-            // 方法3: 从localStorage或sessionStorage获取
-            const localUser = localStorage.getItem('userName') ||
-                            localStorage.getItem('username') ||
-                            sessionStorage.getItem('userName') ||
-                            sessionStorage.getItem('username');
-            if (localUser) {
-                return localUser;
-            }
-        } catch (e) {
-            log('从页面获取用户信息失败: ' + e.message);
-        }
-
-        return '学习者';
-    }
-
     // ==================== 悬浮窗口功能 ====================
 
     // 创建悬浮窗口
@@ -128,10 +71,18 @@
                 <button class="float-close" title="关闭">×</button>
             </div>
             <div class="float-content">
-                <div class="user-section">
-                    <div class="user-info">
-                        <div class="user-greeting">你好，</div>
-                        <div class="user-name" id="float-user-name">加载中...</div>
+                <div class="info-section">
+                    <div class="info-item">
+                        <span class="info-label">班级名称:</span>
+                        <span class="info-value" id="float-class-name-info">加载中...</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">班级ID:</span>
+                        <span class="info-value" id="float-class-id">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">课程ID:</span>
+                        <span class="info-value" id="float-course-id">-</span>
                     </div>
                 </div>
                 <div class="progress-section">
@@ -215,28 +166,28 @@
                 max-height: 500px;
                 overflow-y: auto;
             }
-            .user-section {
+            .info-section {
                 background: rgba(255, 255, 255, 0.95);
                 border-radius: 8px;
-                padding: 12px 15px;
+                padding: 12px;
                 margin-bottom: 12px;
             }
-            .user-info {
+            .info-item {
                 display: flex;
-                align-items: baseline;
-                gap: 4px;
+                align-items: center;
+                padding: 4px 0;
+                font-size: 12px;
             }
-            .user-greeting {
-                font-size: 14px;
+            .info-label {
                 color: #666;
+                min-width: 70px;
+                font-weight: 500;
             }
-            .user-name {
-                font-size: 16px;
-                font-weight: 600;
+            .info-value {
                 color: #333;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
+                font-weight: 600;
+                flex: 1;
+                word-break: break-all;
             }
             .progress-section {
                 background: white;
@@ -398,10 +349,19 @@
         const floatDiv = document.getElementById('auto-study-float');
         if (!floatDiv) return;
 
-        // 更新用户信息
-        const userNameEl = document.getElementById('float-user-name');
-        if (STATE.userName && userNameEl) {
-            userNameEl.textContent = STATE.userName;
+        // 更新班级和课程信息
+        const classNameInfoEl = document.getElementById('float-class-name-info');
+        const classIdEl = document.getElementById('float-class-id');
+        const courseIdEl = document.getElementById('float-course-id');
+
+        if (STATE.className && classNameInfoEl) {
+            classNameInfoEl.textContent = STATE.className;
+        }
+        if (STATE.classId && classIdEl) {
+            classIdEl.textContent = STATE.classId;
+        }
+        if (STATE.courseId && courseIdEl) {
+            courseIdEl.textContent = STATE.courseId;
         }
 
         // 更新进度信息
@@ -410,7 +370,7 @@
         const requiredScoreEl = document.getElementById('float-required-score');
         const progressFillEl = document.getElementById('float-progress-fill');
 
-        if (STATE.className) {
+        if (STATE.className && classNameEl) {
             classNameEl.textContent = STATE.className;
         }
 
@@ -438,11 +398,12 @@
     }
 
     // 更新状态并刷新窗口
-    function updateState(currentScore, requiredScore, className, userName) {
+    function updateState(currentScore, requiredScore, className, classId, courseId) {
         if (currentScore !== undefined) STATE.currentScore = currentScore;
         if (requiredScore !== undefined) STATE.requiredScore = requiredScore;
         if (className !== undefined) STATE.className = className;
-        if (userName !== undefined) STATE.userName = userName;
+        if (classId !== undefined) STATE.classId = classId;
+        if (courseId !== undefined) STATE.courseId = courseId;
         updateFloatingWindow();
     }
 
@@ -557,7 +518,7 @@
         log(`当前学时: ${classDetail.currentScore} / 目标学时: ${classDetail.requiredScore}`);
 
         // 更新悬浮窗口状态
-        updateState(classDetail.currentScore, classDetail.requiredScore, classDetail.className);
+        updateState(classDetail.currentScore, classDetail.requiredScore, classDetail.className, classId, undefined);
 
         // 检查是否已达标
         if (classDetail.currentScore >= classDetail.requiredScore) {
@@ -637,35 +598,18 @@
             const centerY = rect.top + rect.height / 2;
 
             log(`点击视频中心位置 (${Math.round(centerX)}, ${Math.round(centerY)})`);
-
-            // 创建点击事件
-            const clickEvent = new MouseEvent('click', {
-                view: window,
-                bubbles: true,
-                cancelable: true,
-                clientX: centerX,
-                clientY: centerY
-            });
-
-            // 直接点击视频元素
             video.click();
-
-            // 也触发事件到坐标位置
-            const element = document.elementFromPoint(centerX, centerY);
-            if (element) {
-                element.dispatchEvent(clickEvent);
-            }
         } catch (e) {
             log('点击视频中心失败: ' + e.message);
         }
     }
 
-    // 确保视频播放（避免频繁调用）
+    // 确保视频播放
     let lastPlayAttempt = 0;
     async function ensureVideoPlaying() {
         const video = getVideoElement();
         if (!video || !video.paused) {
-            return;  // 视频不存在或正在播放，无需操作
+            return;
         }
 
         // 避免频繁尝试（每5秒最多尝试一次）
@@ -676,20 +620,11 @@
         lastPlayAttempt = now;
 
         log('视频暂停，尝试恢复播放...');
-
         try {
             await video.play();
-            log('✅ 视频恢复播放成功');
+            log('✅ 视频播放成功');
         } catch (e) {
             log('⚠️ 播放失败: ' + e.message);
-            log('尝试点击视频元素');
-            // 点击视频元素
-            video.click();
-
-            // 等待一下，再尝试点击播放按钮
-            setTimeout(() => {
-                clickPlayButtonIfNeeded();
-            }, 500);
         }
     }
 
@@ -796,35 +731,17 @@
         }
     }
 
-    // 智能点击播放按钮（只在视频暂停时点击一次）
-    function clickPlayButtonIfNeeded() {
-        const video = getVideoElement();
-        if (!video || !video.paused) {
-            return;  // 视频正在播放，不需要点击
-        }
-
-        // 查找播放按钮
-        const playButtonSelectors = [
-            'button[class*="play"]:not([class*="playing"])',
-            'button[aria-label*="播放"]',
-            'button[title*="播放"]',
-            '.video-play-button',
-            '.vjs-big-play-button'
-        ];
-
-        for (const selector of playButtonSelectors) {
-            const button = document.querySelector(selector);
-            if (button && button.offsetParent !== null) {
-                log('找到播放按钮，尝试点击');
-                button.click();
-                return;  // 只点击一次就返回
-            }
-        }
-    }
-
     // 视频播放页主逻辑
     function handleVideoPlayPage() {
         log('进入视频播放页面');
+
+        // 获取课程ID和班级ID
+        const courseId = getUrlParam('Id');
+        const classId = getUrlParam('classId');
+        if (courseId) {
+            log(`当前课程ID: ${courseId}`);
+            updateState(undefined, undefined, undefined, classId, courseId);
+        }
 
         // 等待视频加载
         let retryCount = 0;
@@ -836,31 +753,13 @@
 
                 // 尝试自动播放
                 setTimeout(async () => {
-                    if (video.paused) {
-                        log('尝试自动播放视频');
-                        try {
-                            await video.play();
-                            log('✅ 自动播放成功');
-                        } catch (e) {
-                            log('⚠️ 自动播放失败: ' + e.message);
-                            log('自动点击视频元素触发播放');
-
-                            // 点击视频元素
-                            video.click();
-
-                            // 再次尝试播放
-                            setTimeout(async () => {
-                                try {
-                                    await video.play();
-                                    log('✅ 点击后播放成功');
-                                } catch (retryError) {
-                                    log('点击后仍然失败，尝试点击播放按钮');
-                                    clickPlayButtonIfNeeded();
-                                }
-                            }, 300);
-                        }
+                    try {
+                        await video.play();
+                        log('✅ 视频自动播放成功');
+                    } catch (e) {
+                        log('⚠️ 自动播放失败: ' + e.message);
                     }
-                }, 1000);
+                }, 500);
 
                 startVideoMonitoring();
             } else {
@@ -984,22 +883,13 @@
 
     // ==================== 主入口 ====================
 
-    async function init() {
+    function init() {
         log('脚本启动');
 
         // 创建悬浮窗口
         setTimeout(() => {
             createFloatingWindow();
         }, 500);
-
-        // 获取用户信息
-        setTimeout(async () => {
-            const userName = await fetchUserInfo();
-            if (userName) {
-                log(`当前用户: ${userName}`);
-                updateState(undefined, undefined, undefined, userName);
-            }
-        }, 1000);
 
         // 等待页面加载完成
         setTimeout(() => {
