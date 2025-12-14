@@ -1,0 +1,16 @@
+安装插件temparmonkey
+这个插件是用来自动运行学习脚本的，必须安装。目前经测试，在chrome和edge浏览器中均可以安装，其他浏览器可以自行尝试。
+chrome安装方法：
+1.	打开chrome，在地址栏输入chrome://extensions/
+2.	打开开发者模式
+3.	将tampermonkey_stable.crx文件拖动到浏览器页面上，就会安装
+
+edge安装方法：
+
+
+添加脚本
+点击浏览器插件tampermonkey，选择
+
+修改浏览器视频自动播放设置
+在测试中发现edge浏览器默认限制了视频自动播放，
+
