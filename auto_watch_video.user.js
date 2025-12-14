@@ -27,6 +27,7 @@
         className: '',
         classId: '',
         courseId: '',
+        isCompleted: false,
         logs: []
     };
 
@@ -71,24 +72,23 @@
                 <button class="float-close" title="关闭">×</button>
             </div>
             <div class="float-content">
-                <div class="info-section">
-                    <div class="info-item">
-                        <span class="info-label">班级名称:</span>
-                        <span class="info-value" id="float-class-name-info">加载中...</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">班级ID:</span>
-                        <span class="info-value" id="float-class-id">-</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">课程ID:</span>
-                        <span class="info-value" id="float-course-id">-</span>
+                <div class="completion-alert" id="float-completion-alert" style="display: none;">
+                    <div class="alert-icon">✅</div>
+                    <div class="alert-content">
+                        <div class="alert-title">学习完成</div>
+                        <div class="alert-message">请进行考试</div>
                     </div>
                 </div>
-                <div class="progress-section">
-                    <div class="progress-title">学习进度</div>
+                <div class="main-section">
+                    <div class="class-info">
+                        <div class="class-name-large" id="float-class-name">加载中...</div>
+                        <div class="id-row">
+                            <span class="id-item">班级ID: <span id="float-class-id">-</span></span>
+                            <span class="id-separator">|</span>
+                            <span class="id-item">课程ID: <span id="float-course-id">-</span></span>
+                        </div>
+                    </div>
                     <div class="progress-info">
-                        <div class="class-name" id="float-class-name">加载中...</div>
                         <div class="score-info">
                             <span class="current-score" id="float-current-score">0</span>
                             <span class="score-separator">/</span>
@@ -98,6 +98,21 @@
                         <div class="progress-bar">
                             <div class="progress-fill" id="float-progress-fill" style="width: 0%"></div>
                         </div>
+                    </div>
+                </div>
+                <div class="usage-section">
+                    <div class="usage-title">📖 使用步骤</div>
+                    <div class="usage-content">
+                        <ol class="usage-list">
+                            <li>打开yjaqxy.zjyjxj.cn，登录用户。如果出现密码太久未更新，不用管，继续点击回到首页。</li>
+                            <li>打开班级页面，此时小窗口会显示当前学时和目标学时。此时请尽快点击"立即报名"。</li>
+                            <li>如果目标学时还没有达到，就会在10秒后，自动打开一个未学习的视频开始观看。</li>
+                            <li>观看过程中，如果出现"点击验证"可以不管，视频依旧正常播放。</li>
+                            <li>观看过程中如果出现任何其他问题，导致视频无法播放，请退回到步骤2重来。</li>
+                            <li>视频观看完成后，会等待一段时间，自动退回到班级页面，然后继续观看下一个未学习视频。</li>
+                            <li>目标学时达到之后，就不会继续看视频了，请完成考试。</li>
+                            <li>继续打开下一个班级页面，重复上述步骤。</li>
+                        </ol>
                     </div>
                 </div>
                 <div class="log-section">
@@ -114,7 +129,7 @@
         style.textContent = `
             #auto-study-float {
                 position: fixed;
-                top: 20px;
+                bottom: 20px;
                 left: 20px;
                 width: 320px;
                 background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -166,46 +181,82 @@
                 max-height: 500px;
                 overflow-y: auto;
             }
-            .info-section {
-                background: rgba(255, 255, 255, 0.95);
+            .completion-alert {
+                background: linear-gradient(135deg, #52c41a 0%, #73d13d 100%);
                 border-radius: 8px;
-                padding: 12px;
+                padding: 15px;
                 margin-bottom: 12px;
-            }
-            .info-item {
                 display: flex;
                 align-items: center;
-                padding: 4px 0;
-                font-size: 12px;
+                gap: 12px;
+                box-shadow: 0 4px 12px rgba(82, 196, 26, 0.3);
+                animation: pulse 2s ease-in-out infinite;
             }
-            .info-label {
-                color: #666;
-                min-width: 70px;
+            @keyframes pulse {
+                0%, 100% {
+                    box-shadow: 0 4px 12px rgba(82, 196, 26, 0.3);
+                }
+                50% {
+                    box-shadow: 0 6px 20px rgba(82, 196, 26, 0.5);
+                }
+            }
+            .alert-icon {
+                font-size: 32px;
+                line-height: 1;
+            }
+            .alert-content {
+                flex: 1;
+            }
+            .alert-title {
+                font-size: 16px;
+                font-weight: 700;
+                color: white;
+                margin-bottom: 2px;
+            }
+            .alert-message {
+                font-size: 13px;
+                color: rgba(255, 255, 255, 0.95);
                 font-weight: 500;
             }
-            .info-value {
-                color: #333;
-                font-weight: 600;
-                flex: 1;
-                word-break: break-all;
-            }
-            .progress-section {
+            .main-section {
                 background: white;
                 border-radius: 8px;
-                padding: 12px;
+                padding: 15px;
                 margin-bottom: 12px;
             }
-            .progress-title {
-                font-size: 12px;
-                color: #666;
-                margin-bottom: 8px;
-                font-weight: 600;
+            .class-info {
+                margin-bottom: 12px;
+                padding-bottom: 12px;
+                border-bottom: 1px solid #f0f0f0;
             }
-            .class-name {
-                font-size: 13px;
+            .class-name-large {
+                font-size: 15px;
                 color: #333;
+                font-weight: 600;
                 margin-bottom: 8px;
-                font-weight: 500;
+                line-height: 1.4;
+            }
+            .id-row {
+                display: flex;
+                align-items: center;
+                font-size: 11px;
+                color: #666;
+            }
+            .id-item {
+                display: flex;
+                align-items: center;
+            }
+            .id-item span {
+                color: #667eea;
+                font-weight: 600;
+                margin-left: 4px;
+            }
+            .id-separator {
+                margin: 0 8px;
+                color: #ddd;
+            }
+            .progress-info {
+                /* 移除了之前的 class-name 样式 */
             }
             .score-info {
                 display: flex;
@@ -243,6 +294,33 @@
                 background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
                 border-radius: 4px;
                 transition: width 0.5s ease;
+            }
+            .usage-section {
+                background: rgba(255, 255, 255, 0.95);
+                border-radius: 8px;
+                padding: 12px;
+                margin-bottom: 12px;
+            }
+            .usage-title {
+                font-size: 13px;
+                color: #667eea;
+                margin-bottom: 10px;
+                font-weight: 600;
+            }
+            .usage-content {
+                font-size: 11px;
+                color: #555;
+                line-height: 1.6;
+            }
+            .usage-list {
+                margin: 0;
+                padding-left: 20px;
+            }
+            .usage-list li {
+                margin-bottom: 6px;
+            }
+            .usage-list li:last-child {
+                margin-bottom: 0;
             }
             .log-section {
                 background: rgba(255, 255, 255, 0.95);
@@ -349,29 +427,28 @@
         const floatDiv = document.getElementById('auto-study-float');
         if (!floatDiv) return;
 
+        // 更新完成提示
+        const completionAlert = document.getElementById('float-completion-alert');
+        if (completionAlert) {
+            completionAlert.style.display = STATE.isCompleted ? 'flex' : 'none';
+        }
+
         // 更新班级和课程信息
-        const classNameInfoEl = document.getElementById('float-class-name-info');
+        const classNameEl = document.getElementById('float-class-name');
         const classIdEl = document.getElementById('float-class-id');
         const courseIdEl = document.getElementById('float-course-id');
-
-        if (STATE.className && classNameInfoEl) {
-            classNameInfoEl.textContent = STATE.className;
-        }
-        if (STATE.classId && classIdEl) {
-            classIdEl.textContent = STATE.classId;
-        }
-        if (STATE.courseId && courseIdEl) {
-            courseIdEl.textContent = STATE.courseId;
-        }
-
-        // 更新进度信息
-        const classNameEl = document.getElementById('float-class-name');
         const currentScoreEl = document.getElementById('float-current-score');
         const requiredScoreEl = document.getElementById('float-required-score');
         const progressFillEl = document.getElementById('float-progress-fill');
 
         if (STATE.className && classNameEl) {
             classNameEl.textContent = STATE.className;
+        }
+        if (STATE.classId && classIdEl) {
+            classIdEl.textContent = STATE.classId;
+        }
+        if (STATE.courseId && courseIdEl) {
+            courseIdEl.textContent = STATE.courseId;
         }
 
         currentScoreEl.textContent = STATE.currentScore;
@@ -398,12 +475,13 @@
     }
 
     // 更新状态并刷新窗口
-    function updateState(currentScore, requiredScore, className, classId, courseId) {
+    function updateState(currentScore, requiredScore, className, classId, courseId, isCompleted) {
         if (currentScore !== undefined) STATE.currentScore = currentScore;
         if (requiredScore !== undefined) STATE.requiredScore = requiredScore;
         if (className !== undefined) STATE.className = className;
         if (classId !== undefined) STATE.classId = classId;
         if (courseId !== undefined) STATE.courseId = courseId;
+        if (isCompleted !== undefined) STATE.isCompleted = isCompleted;
         updateFloatingWindow();
     }
 
@@ -517,11 +595,13 @@
         log(`班级: ${classDetail.className}`);
         log(`当前学时: ${classDetail.currentScore} / 目标学时: ${classDetail.requiredScore}`);
 
-        // 更新悬浮窗口状态
-        updateState(classDetail.currentScore, classDetail.requiredScore, classDetail.className, classId, undefined);
-
         // 检查是否已达标
-        if (classDetail.currentScore >= classDetail.requiredScore) {
+        const isCompleted = classDetail.currentScore >= classDetail.requiredScore;
+
+        // 更新悬浮窗口状态
+        updateState(classDetail.currentScore, classDetail.requiredScore, classDetail.className, classId, undefined, isCompleted);
+
+        if (isCompleted) {
             log('🎉 已达到目标学时，无需继续学习！');
             return;
         }
